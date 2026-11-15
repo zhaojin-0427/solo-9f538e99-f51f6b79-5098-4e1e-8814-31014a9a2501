@@ -1,0 +1,4 @@
+seq,origin,destination,origin_tz,destination_tz,depart_local,arrive_local,flight_minutes
+1,JFK,ORD,America/New_York,America/Chicago,2024-06-03 08:00,2024-06-03 09:30,150
+2,ORD,DEN,America/Chicago,America/Denver,2024-06-03 11:00,2024-06-03 14:30,270
+3,DEN,LAX,America/Denver,America/Los_Angeles,2024-06-03 16:00,2024-06-03 17:15,135

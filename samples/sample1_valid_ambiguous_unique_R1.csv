@@ -1,0 +1,3 @@
+seq,origin,destination,origin_tz,destination_tz,depart_local,arrive_local,flight_minutes
+1,JFK,DCA,America/New_York,America/New_York,2024-11-03 01:10,2024-11-03 02:30,140
+2,DCA,BOS,America/New_York,America/New_York,2024-11-03 03:40,2024-11-03 05:00,80

@@ -1,0 +1,16 @@
+services:
+  web:
+    build: .
+    image: flight-utc-timeline:latest
+    container_name: flight-utc-timeline
+    ports:
+      - "8000:8000"
+    environment:
+      SCHED_DB_PATH: /data/schedule.db
+      SCHED_SECRET_KEY: change-me-in-production
+    volumes:
+      - schedule_data:/data
+    restart: unless-stopped
+
+volumes:
+  schedule_data:

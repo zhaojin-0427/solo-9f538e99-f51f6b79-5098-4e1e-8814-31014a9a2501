@@ -1,0 +1,27 @@
+<table>
+  <thead>
+    <tr>
+      <th>序号</th><th>出发</th><th>到达</th><th>出发时区</th><th>到达时区</th>
+      <th>出发（当地）</th><th>到达（当地）</th><th>出发 UTC</th><th>到达 UTC</th>
+      <th>飞行分钟</th><th>转机间隔(分钟)</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for r in rows %}
+    <tr>
+      <td>{{ r.seq }}</td>
+      <td>{{ r.origin }}</td>
+      <td>{{ r.destination }}</td>
+      <td>{{ r.origin_tz }}</td>
+      <td>{{ r.destination_tz }}</td>
+      <td>{{ r.depart_local }}</td>
+      <td>{{ r.arrive_local }}</td>
+      <td><strong>{{ r.depart_utc }}</strong></td>
+      <td><strong>{{ r.arrive_utc }}</strong></td>
+      <td>{{ r.flight_minutes }}</td>
+      <td>{% if r.transfer_minutes is none %}<span class="muted">首段</span>
+          {% else %}{{ r.transfer_minutes }}{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>

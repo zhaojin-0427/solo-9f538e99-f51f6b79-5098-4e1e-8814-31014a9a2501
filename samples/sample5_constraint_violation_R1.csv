@@ -1,0 +1,3 @@
+seq,origin,destination,origin_tz,destination_tz,depart_local,arrive_local,flight_minutes
+1,ATL,MIA,America/New_York,America/New_York,2024-06-10 09:00,2024-06-10 10:45,100
+2,MIA,TPA,America/New_York,America/New_York,2024-06-10 14:05,2024-06-10 15:00,55

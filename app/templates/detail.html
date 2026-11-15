@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}{{ d.itinerary_no }} · 联程航班 UTC 时间线{% endblock %}
+{% block body %}
+<div class="card">
+  <h2>行程 {{ d.itinerary_no }}
+    {% if d.current_revision %}<span class="tag published">当前已发布 R{{ d.current_revision }}</span>
+    {% else %}<span class="tag rejected">尚无已发布版本</span>{% endif %}
+  </h2>
+  <p class="muted">
+    收录时间：{{ d.created_at }}
+    {% if d.published_at %}｜当前版发布时间：{{ d.published_at }}{% endif %}
+    ｜<a href="{{ url_for('index') }}">返回首页</a>
+  </p>
+</div>
+
+{% if latest and latest.submission %}
+{% set res = latest.submission.result %}
+<div class="card">
+  <h2>最近提交（R{{ latest.revision_no }}）裁决结果 —
+    {% if res.ok %}<span class="tag published">通过</span>{% else %}<span class="tag rejected">未发布</span>{% endif %}
+  </h2>
+  <p><strong>{{ res.message }}</strong></p>
+
+  {% if res.outcome == 'published' and res.timeline %}
+  <p class="muted">恰好一种可行解释，已发布为 R{{ res.revision_no }}。</p>
+  {% set rows = res.timeline %}
+  {% include "_timeline_table.html" with context %}
+  {% endif %}
+
+  {% if res.outcome == 'rejected' and res.detail %}
+  <div class="reason">
+    {% if res.detail.kind == 'structural' %}
+      <strong>结构性 / 夏令时错误，零种可行解释：</strong>
+      <ul>{% for e in res.detail.structural_errors %}<li>{{ e }}</li>{% endfor %}</ul>
+    {% elif res.detail.kind == 'no_interpretation' %}
+      <strong>{{ res.detail.message }}</strong>
+      {% if res.detail.structural_errors %}
+      <ul>{% for e in res.detail.structural_errors %}<li>{{ e }}</li>{% endfor %}</ul>
+      {% endif %}
+      {% if res.detail.rejection_reasons %}
+      <p>候选解释被淘汰的原因（括号内为出现的候选数）：</p>
+      <ul>{% for item in res.detail.rejection_reasons %}
+        <li>{{ item.reason }}（{{ item.occurrences }} 次）</li>
+      {% endfor %}</ul>
+      {% endif %}
+    {% elif res.detail.kind == 'ambiguous' %}
+      <strong>{{ res.detail.message }}</strong>
+      <p class="muted">存在多种满足全部约束的完整 UTC 时间线，无法唯一发布。各候选解释如下：</p>
+      {% for cand in res.detail.candidates %}
+      <p>候选解释 {{ loop.index }}：</p>
+      {% set rows = cand %}
+      {% include "_timeline_table.html" with context %}
+      {% endfor %}
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>当前已发布的完整 UTC 时间线
+    {% if d.timeline %}
+      <a class="btn-link" style="float:right"
+         href="{{ url_for('download', itinerary_no=d.itinerary_no) }}">下载当前版 CSV（R{{ d.current_revision }}）</a>
+    {% endif %}
+  </h2>
+  {% if d.timeline %}
+  {% set rows = d.timeline %}
+  {% include "_timeline_table.html" with context %}
+  <p class="muted" style="margin-top:10px">
+    转机间隔 = 下一段出发 UTC − 上一段到达 UTC；仅接受 30～180 分钟。
+    下载只返回完整已发布版本；历史已发布修订可通过
+    <code>/download/{{ d.itinerary_no }}?revision=修订号</code> 获取。
+  </p>
+  {% else %}
+  <p class="muted">该行程暂无已发布版本（所有修订均被拒绝或尚未上传）。</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>修订历史</h2>
+  {% if d.revisions %}
+  <table>
+    <thead><tr><th>修订号</th><th>状态</th><th>内容 SHA-256</th><th>提交时间 (UTC)</th><th>下载</th></tr></thead>
+    <tbody>
+    {% for r in d.revisions %}
+      <tr>
+        <td>R{{ r.revision_no }}</td>
+        <td><span class="tag {{ r.status }}">
+          {% if r.status == 'published' %}已发布{% elif r.status == 'conflict' %}冲突{% else %}已拒绝{% endif %}
+        </span></td>
+        <td><code style="font-size:11px">{{ r.content_sha256[:16] }}…</code></td>
+        <td>{{ r.submitted_at }}</td>
+        <td>{% if r.status == 'published' %}
+          <a class="btn-link gray" href="{{ url_for('download', itinerary_no=d.itinerary_no, revision=r.revision_no) }}">下载 R{{ r.revision_no }}</a>
+        {% else %}<span class="muted">不可下载（非完整已发布版本）</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">暂无修订记录。</p>
+  {% endif %}
+</div>
+{% endblock %}

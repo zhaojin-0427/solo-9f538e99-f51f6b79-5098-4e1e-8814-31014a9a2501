@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}联程航班 UTC 时间线{% endblock %}</title>
+  <style>
+    :root { --blue:#1f4e79; --bg:#f4f6f9; --ok:#1a7f37; --err:#b42318; --warn:#b25e09; --line:#d8dee6; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: "PingFang SC","Microsoft YaHei","Noto Sans CJK SC",sans-serif;
+           background:var(--bg); color:#1c2733; }
+    header { background:var(--blue); color:#fff; padding:16px 28px; }
+    header a { color:#fff; text-decoration:none; }
+    main { max-width:1180px; margin:24px auto; padding:0 20px; }
+    .card { background:#fff; border:1px solid var(--line); border-radius:10px; padding:22px 26px; margin-bottom:22px; }
+    h1 { font-size:20px; margin:0; } h2 { font-size:17px; margin:0 0 14px; color:var(--blue); }
+    label { display:block; font-weight:600; margin:10px 0 4px; }
+    input[type=text], input[type=number], input[type=file] { width:100%; padding:9px 11px;
+           border:1px solid var(--line); border-radius:7px; font-size:14px; }
+    .row { display:flex; gap:18px; flex-wrap:wrap; }
+    .row > div { flex:1; min-width:200px; }
+    button { background:var(--blue); color:#fff; border:0; border-radius:7px; padding:10px 26px;
+             font-size:15px; cursor:pointer; margin-top:16px; }
+    button:hover { background:#163b5c; }
+    table { border-collapse:collapse; width:100%; font-size:13.5px; }
+    th,td { border:1px solid var(--line); padding:7px 9px; text-align:left; white-space:nowrap; }
+    th { background:#eef2f7; }
+    .flash { padding:12px 16px; border-radius:8px; margin-bottom:16px; font-weight:600; }
+    .flash.success { background:#e7f6ec; color:var(--ok); border:1px solid #b7e0c3; }
+    .flash.error { background:#fdeceb; color:var(--err); border:1px solid #f4c2bf; }
+    .tag { display:inline-block; padding:2px 9px; border-radius:11px; font-size:12px; font-weight:700; }
+    .tag.published { background:#e7f6ec; color:var(--ok); }
+    .tag.rejected { background:#fdeceb; color:var(--err); }
+    .tag.conflict { background:#fff3e0; color:var(--warn); }
+    .muted { color:#66788a; font-size:13px; }
+    .reason { background:#fdf6ec; border:1px solid #f0d9b5; border-radius:8px; padding:12px 16px; }
+    .reason li { margin:4px 0; }
+    .btn-link { display:inline-block; background:var(--blue); color:#fff !important; padding:7px 16px;
+                border-radius:7px; text-decoration:none; font-size:13px; }
+    .btn-link.gray { background:#5b6b7c; }
+    code { background:#eef2f7; padding:1px 6px; border-radius:4px; }
+    .sample-list a { color:var(--blue); margin-right:14px; }
+  </style>
+</head>
+<body>
+  <header><h1><a href="{{ url_for('index') }}">✈ 联程航班 UTC 时间线处理系统</a></h1></header>
+  <main>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+        <div class="flash {{ category }}">{{ message }}</div>
+      {% endfor %}
+    {% endwith %}
+    {% block body %}{% endblock %}
+  </main>
+</body>
+</html>
