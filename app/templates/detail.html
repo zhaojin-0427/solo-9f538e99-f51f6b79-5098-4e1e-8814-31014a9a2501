@@ -85,7 +85,9 @@
     <tbody>
     {% for r in d.revisions %}
       <tr>
-        <td>R{{ r.revision_no }}</td>
+        <td>R{{ r.revision_no }}
+          {% if r.is_current %}<span class="tag published">当前版</span>{% endif %}
+        </td>
         <td><span class="tag {{ r.status }}">
           {% if r.status == 'published' %}已发布{% elif r.status == 'conflict' %}冲突{% else %}已拒绝{% endif %}
         </span></td>

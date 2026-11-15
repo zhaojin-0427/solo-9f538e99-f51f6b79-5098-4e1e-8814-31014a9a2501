@@ -18,15 +18,17 @@ import json
 
 from .csv_parser import parse_csv
 from .db import (
+    get_detail_rows,
     get_itinerary,
     get_latest_submission,
     get_published,
     get_published_segments,
+    get_published_timeline_rows,
     get_revision,
     immediate_transaction,
     list_itineraries,
-    list_revisions,
     log_submission,
+    read_transaction,
     utcnow_iso,
 )
 from .timeline import Evaluation, evaluate, export_csv_lines, interpretation_to_rows
@@ -208,29 +210,52 @@ def submit(itinerary_no: str, revision_no: int, raw: bytes, db_path: str | None 
 
 
 def get_overview(db_path: str | None = None) -> list[dict]:
-    with immediate_transaction(db_path) as conn:
+    # 纯读：一致性快照，不获取写锁，不阻塞其他行程的上传。
+    with read_transaction(db_path) as conn:
         return [dict(r) for r in list_itineraries(conn)]
+
+
+SEGMENT_FIELDS = (
+    "seq", "origin", "destination", "origin_tz", "destination_tz",
+    "depart_local", "arrive_local", "depart_utc", "arrive_utc",
+    "flight_minutes", "transfer_minutes",
+)
+
+
+REVISION_FIELDS = ("revision_id", "revision_no", "status", "content_sha256", "submitted_at")
+
+
+def _segments_from_view(rows) -> list[dict]:
+    return [{key: row[key] for key in SEGMENT_FIELDS} for row in rows]
 
 
 def get_detail(itinerary_no: str, latest_rev: int | None = None,
                db_path: str | None = None) -> dict | None:
-    with immediate_transaction(db_path) as conn:
-        it = get_itinerary(conn, itinerary_no)
-        if it is None:
+    # 当前修订号、修订记录与 UTC 航段由同一条视图（同一次查询）返回：
+    # 要么全部来自旧发布，要么全部来自新发布，不会混用版本。
+    with read_transaction(db_path) as conn:
+        rows = get_detail_rows(conn, itinerary_no)
+        if not rows:
             return None
-        published = get_published(conn, it["id"])
-        revisions = [dict(r) for r in list_revisions(conn, it["id"])]
+        head = rows[0]
+        revision_rows = [r for r in rows if r["row_type"] == "revision"]
+        segment_rows = [r for r in rows if r["row_type"] == "segment"]
+        revisions = []
+        for rev in revision_rows:
+            entry = {key: rev[key] for key in REVISION_FIELDS}
+            entry["id"] = rev["revision_id"]
+            entry["is_current"] = rev["revision_id"] == head["current_revision_id"]
+            revisions.append(entry)
         out = {
             "itinerary_no": itinerary_no,
-            "created_at": it["created_at"],
-            "current_revision": published["revision_no"] if published else None,
-            "published_at": published["published_at"] if published else None,
-            "timeline": None,
+            "created_at": head["created_at"],
+            "current_revision": head["current_revision"],
+            "published_at": head["published_at"],
+            "current_revision_id": head["current_revision_id"],
+            "timeline": _segments_from_view(segment_rows) or None,
             "revisions": revisions,
             "latest_submission": None,
         }
-        if published is not None:
-            out["timeline"] = [dict(r) for r in get_published_segments(conn, published["revision_id"])]
         if latest_rev is not None:
             sub = get_latest_submission(conn, itinerary_no, latest_rev)
             if sub is not None:
@@ -244,24 +269,27 @@ def get_detail(itinerary_no: str, latest_rev: int | None = None,
 
 def get_published_timeline(itinerary_no: str, revision_no: int | None = None,
                            db_path: str | None = None) -> tuple[list[dict], int] | None:
-    """下载用：只返回完整已发布版本。返回 (段列表, 修订号) 或 None。"""
-    with immediate_transaction(db_path) as conn:
-        it = get_itinerary(conn, itinerary_no)
-        if it is None:
-            return None
+    """下载用：只返回完整已发布版本。返回 (段列表, 修订号) 或 None。
+
+    当前版通过单条视图查询取得「修订号 + 全部航段」，只会来自一个完整
+    已发布版本；历史修订在同一读快照内校验发布状态后读取其航段。
+    """
+    with read_transaction(db_path) as conn:
         if revision_no is None:
-            published = get_published(conn, it["id"])
-        else:
-            rev = get_revision(conn, it["id"], revision_no)
-            if rev is None or rev["status"] != "published":
+            rows = get_published_timeline_rows(conn, itinerary_no)
+            if not rows:
                 return None
-            published = {"revision_id": rev["id"], "revision_no": revision_no}
-        if published is None:
+            return _segments_from_view(rows), rows[0]["current_revision"]
+        row = get_itinerary(conn, itinerary_no)
+        if row is None:
             return None
-        segments = [dict(r) for r in get_published_segments(conn, published["revision_id"])]
+        rev = get_revision(conn, row["id"], revision_no)
+        if rev is None or rev["status"] != "published":
+            return None
+        segments = [dict(r) for r in get_published_segments(conn, rev["id"])]
         if not segments:
             return None
-        return segments, published["revision_no"]
+        return segments, rev["revision_no"]
 
 
 def export_published_csv(segments: list[dict]) -> list[list[str]]:

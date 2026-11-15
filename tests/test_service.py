@@ -182,10 +182,13 @@ def test_concurrent_uploads_serialized_by_latest_revision(db_path):
 
     # R3 修订号最高，必然发布并成为最终当前版
     assert service.PUBLISHED in by_rev[3]
-    # R2 中必有一个发布；其余同内容幂等，异内容被冲突或过期规则拒绝
-    assert service.PUBLISHED in by_rev[2]
+    # R2 的裁决取决于各自提交时的最新修订：
+    #   - 若某个 R2 先拿到写锁，则发布；其后同内容幂等、异内容冲突；
+    #   - 若 R3 先发布，则所有 R2 都低于当前最新修订，全部判过期。
     assert set(by_rev[2]) <= {service.PUBLISHED, service.IDEMPOTENT,
                               service.CONFLICT, service.STALE}
+    if service.PUBLISHED not in by_rev[2]:
+        assert set(by_rev[2]) == {service.STALE}
     detail = service.get_detail("IT-C", db_path=db_path)
     assert detail["current_revision"] == 3
 

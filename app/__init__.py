@@ -72,23 +72,19 @@ def create_app() -> Flask:
 
     @app.get("/itinerary/<path:itinerary_no>")
     def itinerary_detail(itinerary_no: str):
-        detail = service.get_detail(itinerary_no)
-        if detail is None:
-            abort(404, description=f"行程 {itinerary_no} 不存在")
-        # 最近一次提交的裁决结果（仅用于本次页面提示）
-        latest = None
+        # 只读一次：整页（当前修订号 + 修订历史 + UTC 航段）取自同一 WAL 快照，
+        # 并发发布不会让页面上出现新旧版本混排。
         outcome = request.args.get("outcome")
         rev = request.args.get("rev", type=int)
+        detail = service.get_detail(
+            itinerary_no, latest_rev=rev if outcome and rev is not None else None
+        )
+        if detail is None:
+            abort(404, description=f"行程 {itinerary_no} 不存在")
+        latest = None
         if outcome and rev is not None:
-            detail = service.get_detail(itinerary_no, latest_rev=rev)
-            if detail is None:
-                abort(404, description=f"行程 {itinerary_no} 不存在")
             latest = {"outcome": outcome, "revision_no": rev,
                       "submission": detail.get("latest_submission")}
-        else:
-            detail = service.get_detail(itinerary_no)
-            if detail is None:
-                abort(404, description=f"行程 {itinerary_no} 不存在")
         return render_template("detail.html", d=detail, latest=latest)
 
     @app.get("/download/<path:itinerary_no>")
